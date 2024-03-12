@@ -51,7 +51,7 @@ resource "azurerm_resource_group" "default" {
 }
 
 resource "azurerm_user_assigned_identity" "aks_identity" {
-  resource_group_name = "rg-${random_pet.prefix.id}"
+  resource_group_name = azurerm_resource_group.default.name
   location            = var.location
 
   name = "mid-${random_pet.prefix.id}-aks_identity"
