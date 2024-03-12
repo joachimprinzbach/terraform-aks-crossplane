@@ -178,14 +178,6 @@ resource "azurerm_key_vault_secret" "client_id" {
   depends_on = [azurerm_key_vault_access_policy.default_policy]
 }
 
-resource "azurerm_key_vault_secret" "crossplane-use_workload_id" {
-  key_vault_id = azurerm_key_vault.default.id
-  name         = "crossplane-use-workload-identity-auth"
-  value        = "true"
-
-  depends_on = [azurerm_key_vault_access_policy.default_policy]
-}
-
 resource "azurerm_key_vault_secret" "cloudflare-api-key" {
   key_vault_id = azurerm_key_vault.default.id
   name         = "cloudflare-api-key"
