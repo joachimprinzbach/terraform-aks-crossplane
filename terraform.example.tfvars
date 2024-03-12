@@ -1,0 +1,5 @@
+location = "westeurope"
+github-oauth-argo-client-id = ""
+github-oauth-argo-client-secret = ""
+cloudflare-api-key = ""
+cloudflare-api-token = ""
