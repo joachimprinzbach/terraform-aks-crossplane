@@ -53,8 +53,13 @@ resource "azurerm_resource_group" "default" {
 resource "azurerm_user_assigned_identity" "aks_identity" {
   resource_group_name = azurerm_resource_group.default.name
   location            = var.location
-
   name = "mid-${random_pet.prefix.id}-aks_identity"
+}
+
+resource "azurerm_role_assignment" "crossplane" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Owner"
+  principal_id         = azurerm_user_assigned_identity.aks_identity.principal_id
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
@@ -96,27 +101,6 @@ resource "azurerm_role_assignment" "clusteruser" {
   scope                = azurerm_kubernetes_cluster.aks.id
   role_definition_name = "Azure Kubernetes Service Cluster User Role"
   principal_id         = azuread_group.group-aks-cluster-admins.object_id
-}
-
-resource "azurerm_user_assigned_identity" "crossplane" {
-  location            = var.location
-  name                = "mid-${random_pet.prefix.id}-crossplane"
-  resource_group_name = azurerm_resource_group.default.name
-}
-
-resource "azurerm_role_assignment" "crossplane" {
-  scope                = data.azurerm_subscription.current.id
-  role_definition_name = "Owner"
-  principal_id         = azurerm_user_assigned_identity.crossplane.principal_id
-}
-
-resource "azurerm_federated_identity_credential" "crossplane" {
-  name                = "fedid-${random_pet.prefix.id}-crossplane"
-  resource_group_name = azurerm_resource_group.default.name
-  parent_id           = azurerm_user_assigned_identity.crossplane.id
-  audience            = ["api://AzureADTokenExchange"]
-  issuer              = azurerm_kubernetes_cluster.aks.oidc_issuer_url
-  subject             = "system:serviceaccount:azureserviceoperator-system:azureserviceoperator-default"
 }
 
 resource "azurerm_key_vault" "default" {
@@ -189,7 +173,7 @@ resource "azurerm_key_vault_secret" "tenant_id" {
 resource "azurerm_key_vault_secret" "client_id" {
   key_vault_id = azurerm_key_vault.default.id
   name         = "crossplane-managed-identity-client-id"
-  value        = azurerm_user_assigned_identity.crossplane.client_id
+  value        = azurerm_user_assigned_identity.aks_identity.client_id
 
   depends_on = [azurerm_key_vault_access_policy.default_policy]
 }
