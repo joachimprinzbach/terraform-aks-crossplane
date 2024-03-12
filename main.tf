@@ -50,6 +50,13 @@ resource "azurerm_resource_group" "default" {
   location = var.location
 }
 
+resource "azurerm_user_assigned_identity" "aks_identity" {
+  resource_group_name = "rg-${random_pet.prefix.id}"
+  location            = var.location
+
+  name = "mid-${random_pet.prefix.id}-aks_identity"
+}
+
 resource "azurerm_kubernetes_cluster" "aks" {
   name                      = "aks-${random_pet.prefix.id}"
   location                  = var.location
@@ -74,7 +81,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 
   identity {
-    type = "SystemAssigned"
+    type = "UserAssigned"
+    identity_ids = tolist([azurerm_user_assigned_identity.aks_identity.id])
   }
 }
 
@@ -90,22 +98,22 @@ resource "azurerm_role_assignment" "clusteruser" {
   principal_id         = azuread_group.group-aks-cluster-admins.object_id
 }
 
-resource "azurerm_user_assigned_identity" "aso" {
+resource "azurerm_user_assigned_identity" "crossplane" {
   location            = var.location
-  name                = "mid-${random_pet.prefix.id}-aso"
+  name                = "mid-${random_pet.prefix.id}-crossplane"
   resource_group_name = azurerm_resource_group.default.name
 }
 
-resource "azurerm_role_assignment" "aso" {
+resource "azurerm_role_assignment" "crossplane" {
   scope                = data.azurerm_subscription.current.id
   role_definition_name = "Owner"
-  principal_id         = azurerm_user_assigned_identity.aso.principal_id
+  principal_id         = azurerm_user_assigned_identity.crossplane.principal_id
 }
 
-resource "azurerm_federated_identity_credential" "aso" {
-  name                = "fedid-${random_pet.prefix.id}-aso"
+resource "azurerm_federated_identity_credential" "crossplane" {
+  name                = "fedid-${random_pet.prefix.id}-crossplane"
   resource_group_name = azurerm_resource_group.default.name
-  parent_id           = azurerm_user_assigned_identity.aso.id
+  parent_id           = azurerm_user_assigned_identity.crossplane.id
   audience            = ["api://AzureADTokenExchange"]
   issuer              = azurerm_kubernetes_cluster.aks.oidc_issuer_url
   subject             = "system:serviceaccount:azureserviceoperator-system:azureserviceoperator-default"
@@ -180,15 +188,15 @@ resource "azurerm_key_vault_secret" "tenant_id" {
 
 resource "azurerm_key_vault_secret" "client_id" {
   key_vault_id = azurerm_key_vault.default.id
-  name         = "aso-managed-identity-client-id"
-  value        = azurerm_user_assigned_identity.aso.client_id
+  name         = "crossplane-managed-identity-client-id"
+  value        = azurerm_user_assigned_identity.crossplane.client_id
 
   depends_on = [azurerm_key_vault_access_policy.default_policy]
 }
 
-resource "azurerm_key_vault_secret" "aso-use_workload_id" {
+resource "azurerm_key_vault_secret" "crossplane-use_workload_id" {
   key_vault_id = azurerm_key_vault.default.id
-  name         = "aso-use-workload-identity-auth"
+  name         = "crossplane-use-workload-identity-auth"
   value        = "true"
 
   depends_on = [azurerm_key_vault_access_policy.default_policy]
